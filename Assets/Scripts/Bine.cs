@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Bine : MonoBehaviour {
+    public int leafTravelDistance; 
+    public int beedGapPerLeaf;
     bool addLeaf = true;
     public int currentNumberOfBeeds = 0;
     public int currentNumberOfLeaves = 0;
     public float leafGrowthRate;
     public GameObject seed;
     public GameObject leaf;
-    public GameObject newLeaf;
+    public GameObject secLeaf;
+    private GameObject newLeaf;
     private int frameCount = 0;
     public int growthTime = 50;
     public int particleCount = 10;
@@ -17,6 +20,7 @@ public class Bine : MonoBehaviour {
     public float radius = 1;
     GameObject[] plant;
     GameObject[] leaves;
+    Vector3[] cn;
     GameObject lastBeed;
     public float beedDistance = 1;
     public Vector3 maxBeedRotation = new Vector3(5, 5, 5);
@@ -53,7 +57,8 @@ public class Bine : MonoBehaviour {
         thisGameObject = this.gameObject;
         seed = GameObject.Find("seed1");
         plant = new GameObject[particleCount];
-        leaves = new GameObject[particleCount / 5];
+        leaves = new GameObject[particleCount / beedGapPerLeaf];
+        cn = new Vector3[particleCount];
         beedPositions = new Vector3[particleCount];
         girths = new float[particleCount];
         lastBeed = Instantiate(beed, transform.position, transform.rotation);
@@ -149,26 +154,50 @@ public class Bine : MonoBehaviour {
         }
         //tubeRenderer.SetPoints(beedPositions, 1, Color.cyan);
         if (currentNumberOfBeeds > 1) {
+            tubeRenderer.enabled = true;
             tubeRenderer.SetBinePoints(beedPositions, girths, Color.cyan);
         }
-        
-        LeafGrowth();
+        if (currentNumberOfBeeds > 2) {
+            LeafGrowth();
+        }
     }
 
     void LeafGrowth()
     {
-        if ((currentNumberOfBeeds % 5 == 0) && addLeaf)
+        if ((currentNumberOfBeeds % beedGapPerLeaf == 0) && addLeaf)
         {
-            newLeaf = Instantiate(leaf, leaf.transform.position, leaf.transform.rotation);
-            newLeaf.transform.rotation = Quaternion.Euler(newLeaf.transform.rotation.eulerAngles + new Vector3(0, 90,0));
-            theLeaf = newLeaf.GetComponent<Leaf>();
-            theLeaf.FirstLeaf = false;
-            theLeaf.plant = plant;
-            theLeaf.destinationBeadNumber = currentNumberOfBeeds + 5;
-            theLeaf.currentBeadNumber = currentNumberOfBeeds;
-            leaves[currentNumberOfLeaves] = newLeaf;
-            currentNumberOfLeaves++;
-            addLeaf = false;
+            if (supportFound)
+            {
+                newLeaf = Instantiate(secLeaf, secLeaf.transform.position, secLeaf.transform.rotation);
+                newLeaf.transform.rotation = Quaternion.Euler(newLeaf.transform.rotation.eulerAngles + new Vector3(0, 90, 0));  
+                newLeaf.name = "leaf" + currentNumberOfLeaves;
+                theLeaf = newLeaf.GetComponent<Leaf>();
+                newLeaf.transform.parent = thisGameObject.transform.FindChild("leaves");
+                theLeaf.FirstLeaf = false;
+                theLeaf.plant = plant;
+                theLeaf.cn = cn;
+                theLeaf.destinationBeadNumber = currentNumberOfBeeds + leafTravelDistance;
+                theLeaf.currentBeadNumber = currentNumberOfBeeds;
+                leaves[currentNumberOfLeaves] = newLeaf;
+                currentNumberOfLeaves++;
+                addLeaf = false;
+            }
+
+            else
+            {
+                newLeaf = Instantiate(secLeaf, secLeaf.transform.position, secLeaf.transform.rotation);
+                newLeaf.transform.rotation = Quaternion.Euler(newLeaf.transform.rotation.eulerAngles + new Vector3(0, 90, 0));
+                newLeaf.name = "leaf" + currentNumberOfLeaves;
+                theLeaf = newLeaf.GetComponent<Leaf>();
+                newLeaf.transform.parent = thisGameObject.transform.FindChild("leaves");
+                theLeaf.FirstLeaf = false;
+                theLeaf.plant = plant;
+                theLeaf.destinationBeadNumber = currentNumberOfBeeds + 5;
+                theLeaf.currentBeadNumber = currentNumberOfBeeds;
+                leaves[currentNumberOfLeaves] = newLeaf;
+                currentNumberOfLeaves++;
+                addLeaf = false;
+            }
         }
         if (!(currentNumberOfBeeds % 5 == 0))
         {
@@ -179,7 +208,6 @@ public class Bine : MonoBehaviour {
         {
             theLeaf = leaves[i].GetComponent<Leaf>();
             theLeaf.currentBeadNumber = currentNumberOfBeeds;
-
         }
             
     }
@@ -373,7 +401,8 @@ public class Bine : MonoBehaviour {
         collidingBeed = lastBeed.GetComponent<Collider>();
         collisionNormal = collision.contacts[0].normal;
         float collitionangleRelativeToUpward= Vector3.Angle(collisionNormal, theUpward);
-    
+        cn[currentNumberOfBeeds] = collisionNormal;
+        
         if (collitionangleRelativeToUpward < gravitrophismAbsoluteLimit)
         {
             Debug.Log("Support Lost !!!");

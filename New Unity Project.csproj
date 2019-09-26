@@ -80,12 +80,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\FPSDisplay.cs" />
+    <Compile Include="Assets\Inverse Kinematics\Scripts\InverseKinematics.cs" />
     <Compile Include="Assets\Scripts\Beed.cs" />
     <Compile Include="Assets\Scripts\Bine.cs" />
     <Compile Include="Assets\Scripts\Leaf.cs" />
     <Compile Include="Assets\Scripts\NewBehaviourScript.cs" />
     <Compile Include="Assets\Scripts\TubeRenderer.cs" />
     <Compile Include="Assets\Scripts\experimental.cs" />
+    <Compile Include="Assets\Scripts\leafThiplets.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />
