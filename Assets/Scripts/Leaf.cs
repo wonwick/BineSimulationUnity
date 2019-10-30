@@ -26,13 +26,16 @@ public class Leaf : MonoBehaviour
     public float endleafSetGrowthAngle;
     private bool firstTime =true;
     TubeRenderer tubeRenderer;
+    public float StemGrowthSpeed;
     Vector3[] stem;
     float[] girths;
     // Use this for initialization
     void Start()
     {
+
+        StemGrowthSpeed = 0.0005f;
         endleafSetGrowthAngle = 30f;
-        growthRate = 0.001f;
+        growthRate = 0.0001f;
         girths = new float[2] { 0.05f, 0.025f };
         stem = new Vector3[2]; 
         currentScale = 0;
@@ -45,6 +48,9 @@ public class Leaf : MonoBehaviour
         reset();
         tubeRenderer = gameObject.GetComponent<TubeRenderer>();
         tubeRenderer.enabled = false;
+        plant = gameObject.transform.parent.gameObject.transform.parent.gameObject.GetComponent<Bine>().plant;
+        cn = gameObject.transform.parent.gameObject.transform.parent.gameObject.GetComponent<Bine>().cn;
+
     }
 
     // Update is called once per frame
@@ -67,9 +73,23 @@ public class Leaf : MonoBehaviour
 
             if (currentBeadNumber < destinationBeadNumber)
             {
-                Debug.Log(gameObject.name + " : " + currentBeadNumber + "\n");
+                //Debug.Log(gameObject.name + " : " + currentBeadNumber + "\n");
+                if (plant.Length< (currentBeadNumber - 2)) {
+                    Debug.Log("plantLength:" + plant.Length + " VS " + (currentBeadNumber - 2));
+                }
+                
                 attachedBeed = plant[currentBeadNumber - 2];
-                currentGrowthDirection = cn[currentBeadNumber - 2];
+                if ((currentBeadNumber - 2) <= cn.Length) {
+                    currentGrowthDirection = cn[currentBeadNumber - 2];
+                }
+
+               
+                else
+                {
+                    Debug.Log("null Vector Found Handle This!!!"+"  cnLength:" + cn.Length + " VS " + (currentBeadNumber - 2));
+                    
+                    return;
+                }
                 gameObject.transform.position = attachedBeed.transform.position;
 
                 if (firstTime)
@@ -95,9 +115,9 @@ public class Leaf : MonoBehaviour
 
             if (!FirstLeaf)
             {
-                Debug.DrawRay(transform.position, attachedBeed.transform.forward, Color.red);
-                Debug.DrawRay(transform.position, currentGrowthDirection, Color.green);
-                Debug.DrawRay(transform.position, transform.forward, Color.blue);
+                //Debug.DrawRay(transform.position, attachedBeed.transform.forward, Color.red);
+                //Debug.DrawRay(transform.position, currentGrowthDirection, Color.green);
+                //Debug.DrawRay(transform.position, transform.forward, Color.blue);
                 isLeafTriplet = true;
             }
             if (currentScale < 7)
@@ -112,14 +132,16 @@ public class Leaf : MonoBehaviour
             }
             if (Vector3.Angle(gameObject.transform.forward, Vector3.up) > 30) {
 
-                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, Vector3.up, 0.0005f, 0.5f);
+                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, Vector3.up, StemGrowthSpeed, 0.5f);
             }
-            offset = Vector3.Slerp(offset, 2 * currentGrowthDirection.normalized, 0.001f);
+            offset = Vector3.Slerp(offset, 2 * currentGrowthDirection.normalized, 0.0001f);
             gameObject.transform.position = attachedBeed.transform.position + offset;
             //gameObject.transform.position = Vector3.Slerp(gameObject.transform.position, attachedBeed.transform.position+currentGrowthDirection.normalized,0.01f);
             stem[1] = transform.InverseTransformPoint(gameObject.transform.position);
+
+            //Debug.Log("StartBeadAvailable:"+(startBead!=null)+"\n");
             stem[0] = transform.InverseTransformPoint(startBead.transform.position);
-            Debug.Log("stem: " + stem[0] + " & " + stem[1] + " \n");
+            
             renderStem();
         }
     }
@@ -139,6 +161,7 @@ public class Leaf : MonoBehaviour
 
     private void reset()
     {
+        firstTime = true;
         currentScale = 0;
         subleaf1.transform.localRotation = Quaternion.Euler(0, startAngle, 0);
         subleaf2.transform.localRotation = Quaternion.Euler(0, -1*startAngle, 0);

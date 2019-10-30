@@ -18,9 +18,9 @@ public class Bine : MonoBehaviour {
     public int particleCount = 10;
     public GameObject beed;
     public float radius = 1;
-    GameObject[] plant;
+    public GameObject[] plant;
     GameObject[] leaves;
-    Vector3[] cn;
+    public Vector3[] cn;
     GameObject lastBeed;
     public float beedDistance = 1;
     public Vector3 maxBeedRotation = new Vector3(5, 5, 5);
@@ -53,7 +53,8 @@ public class Bine : MonoBehaviour {
     Collider collidingBeed;
     Leaf theLeaf;
     // Use this for initialization
-    void Start() {
+    private void Awake()
+    {
         thisGameObject = this.gameObject;
         seed = GameObject.Find("seed1");
         plant = new GameObject[particleCount];
@@ -62,23 +63,26 @@ public class Bine : MonoBehaviour {
         beedPositions = new Vector3[particleCount];
         girths = new float[particleCount];
         lastBeed = Instantiate(beed, transform.position, transform.rotation);
-        lastBeed.name = thisGameObject.name +"_beed_0";
+        lastBeed.name = thisGameObject.name + "_beed_0";
         lastBeed.transform.parent = thisGameObject.transform;
         //Vector3 initRotation = new Vector3(270, 0, 0); //sphericalbeed
-        tubeRenderer=thisGameObject.GetComponent<TubeRenderer>();
+        tubeRenderer = thisGameObject.GetComponent<TubeRenderer>();
 
         Vector3 initRotation = new Vector3(270, 0, 0); //cylindericalBeed
 
         lastBeed.transform.Rotate(initRotation);
         plant[currentNumberOfBeeds] = lastBeed;
         currentNumberOfBeeds++;
-        theLeaf =leaf.GetComponent<Leaf>();
+        theLeaf = leaf.GetComponent<Leaf>();
         theLeaf.FirstLeaf = true;
         theLeaf.plant = plant;
         theLeaf.destinationBeadNumber = 5;
         theLeaf.currentBeadNumber = currentNumberOfBeeds;
         leaves[0] = leaf;
         currentNumberOfLeaves++;
+    }
+    void Start() {
+        
     }
     //this is called in fixed intervals
     private void FixedUpdate() {
@@ -106,7 +110,7 @@ public class Bine : MonoBehaviour {
 
                 else
                 {
-                    Debug.Log("supportFoundGrowth\n");
+                    //Debug.Log("supportFoundGrowth\n");
                     //Debug.DrawRay(beedCollision.contacts[0].point, collisionNormal, Color.green, 60*5, false);
                     newGrowthDirection = collisionNormal;
 
@@ -174,8 +178,6 @@ public class Bine : MonoBehaviour {
                 theLeaf = newLeaf.GetComponent<Leaf>();
                 newLeaf.transform.parent = thisGameObject.transform.FindChild("leaves");
                 theLeaf.FirstLeaf = false;
-                theLeaf.plant = plant;
-                theLeaf.cn = cn;
                 theLeaf.destinationBeadNumber = currentNumberOfBeeds + leafTravelDistance;
                 theLeaf.currentBeadNumber = currentNumberOfBeeds;
                 leaves[currentNumberOfLeaves] = newLeaf;
@@ -191,7 +193,7 @@ public class Bine : MonoBehaviour {
                 theLeaf = newLeaf.GetComponent<Leaf>();
                 newLeaf.transform.parent = thisGameObject.transform.FindChild("leaves");
                 theLeaf.FirstLeaf = false;
-                theLeaf.plant = plant;
+                
                 theLeaf.destinationBeadNumber = currentNumberOfBeeds + 5;
                 theLeaf.currentBeadNumber = currentNumberOfBeeds;
                 leaves[currentNumberOfLeaves] = newLeaf;
@@ -223,7 +225,7 @@ public class Bine : MonoBehaviour {
             lastBeed.transform.Translate(0.001f * translatingDirection);
            //Vector3 newRotation = Vector3.RotateTowards(lastBeed.transform.forward, collisionNormal, supportLostGravitrophismAdjustment, 0);
             //lastBeed.transform.rotation = Quaternion.LookRotation(newRotation);
-            Debug.Log("goaping: translating");
+            //Debug.Log("goaping: translating");
 
         }
         else {
@@ -283,7 +285,7 @@ public class Bine : MonoBehaviour {
     void supportLostGrowth()
     {
         float gravitrophismDifference = Vector3.Angle(lastBeed.transform.forward, theUpward);
-        Debug.Log("gravitrophismDifference:" + gravitrophismDifference);
+        //Debug.Log("gravitrophismDifference:" + gravitrophismDifference);
         if (gravitrophismDifference > reCircumnutateReadyAngle)
         {
             circumnutationOn = false;
@@ -297,7 +299,7 @@ public class Bine : MonoBehaviour {
         {
             lastBeed.transform.rotation = Quaternion.LookRotation(theUpward);
             startingBeed = currentNumberOfBeeds-1;
-            Debug.Log("ready to Circumnutate!!");
+            //Debug.Log("ready to Circumnutate!!");
             circumnutationOn = true;
             supportLost = false;
         }
@@ -328,8 +330,8 @@ public class Bine : MonoBehaviour {
     void SupportLessGrowth() {
         Vector3 newPosition = lastBeed.transform.position + lastBeed.transform.forward * beedDistance;
         // removing the colider of previouse beed
-        //DestroyImmediate(lastBeed.GetComponent<Collider>());
-        //DestroyImmediate(lastBeed.GetComponent<Beed>());
+        DestroyImmediate(lastBeed.GetComponent<Collider>());
+        DestroyImmediate(lastBeed.GetComponent<Beed>());
         lastBeed = Instantiate(beed, newPosition, lastBeed.transform.rotation);
         lastBeed.name = "Beed" + currentNumberOfBeeds;
         lastBeed.transform.parent = thisGameObject.transform;
@@ -405,7 +407,7 @@ public class Bine : MonoBehaviour {
         
         if (collitionangleRelativeToUpward < gravitrophismAbsoluteLimit)
         {
-            Debug.Log("Support Lost !!!");
+            //Debug.Log("Support Lost !!!");
             supportFound = false;
             circumnutationOn = false;
             supportLost = true;

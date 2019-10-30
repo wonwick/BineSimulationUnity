@@ -27,16 +27,17 @@ public class Beed : MonoBehaviour {
         
         float currentCollitionAngle = Vector3.Angle(this.gameObject.transform.forward, collision.contacts[0].normal*-1);
 
-        Debug.Log("colided: " + currentCollitionAngle);
+        //Debug.Log("colided: " + currentCollitionAngle);
 
         if (currentCollitionAngle > acceptedCollitionAngle)
         {
+            //Debug.Break();
             thePlant.GetComponent<Bine>().onHitSupportStructure(collision);
 
 
         }
         else {
-            Debug.Log("not Accepted collition: " + currentCollitionAngle+"<"+acceptedCollitionAngle);
+            //Debug.Log("not Accepted collition: " + currentCollitionAngle+"<"+acceptedCollitionAngle);
             Destroy(this.gameObject.GetComponent<Collider>());
             Destroy(this.gameObject.GetComponent<Beed>());
             
