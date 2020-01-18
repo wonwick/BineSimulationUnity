@@ -22,24 +22,40 @@ public class Leaf : MonoBehaviour
     public float endAngle = 30;
     public bool isLeafTriplet;
     Vector3 currentGrowthDirection;
-    public Vector3 offset;
+    public Vector3 horizntalOffset;
+    public Vector3 VerticalOffset;
     public float endleafSetGrowthAngle;
     private bool firstTime =true;
     TubeRenderer tubeRenderer;
     public float StemGrowthSpeed;
     Vector3[] stem;
     float[] girths;
+    float Speed;
+    float SpanningSpeed;
+    float leafScalingSpeed;
+    float stemGrowthSpeed;
+    float rotatingSpeed;
+    float heliotropicMovementAngle = 0.1f;
+    int heliotropicMovementDirection = 1;
+    float upwardRoatingAmount = 0.1f;
+    Vector3 startingForwardDirection;
+    bool heliotropicLeafs = false;
     // Use this for initialization
     void Start()
     {
-
+        Speed = 0.5f* 1;
+        SpanningSpeed = 10*Speed;
+        leafScalingSpeed = 50    * Speed;
+        stemGrowthSpeed = 100 * Speed;
+        rotatingSpeed = 100 * Speed;
         StemGrowthSpeed = 0.0005f;
         endleafSetGrowthAngle = 30f;
-        growthRate = 0.0001f;
+        growthRate = 0.0001f*leafScalingSpeed;
         girths = new float[2] { 0.05f, 0.025f };
         stem = new Vector3[2]; 
         currentScale = 0;
-        offset = Vector3.zero;
+        horizntalOffset = Vector3.zero;
+        VerticalOffset = Vector3.zero;
         subleaf1 = gameObject.transform.GetChild(0).gameObject;
         subleaf2 = gameObject.transform.GetChild(1).gameObject;
         if (isLeafTriplet) {
@@ -56,6 +72,9 @@ public class Leaf : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        Debug.DrawRay(gameObject.transform.position, gameObject.transform.forward, Color.cyan);
+        //Debug.DrawRay(gameObject.transform.position, currentGrowthDirection, Color.blue);
+
         if (isSimpleGrowth)
         {
             simpleLeafGrowth();
@@ -64,6 +83,10 @@ public class Leaf : MonoBehaviour
         {
             complexLeafGrowth();
 
+        }
+        if (heliotropicLeafs)
+        {
+            //showHeliotropicMovements();
         }
     }
 
@@ -81,15 +104,23 @@ public class Leaf : MonoBehaviour
                 attachedBeed = plant[currentBeadNumber - 2];
                 if ((currentBeadNumber - 2) <= cn.Length) {
                     currentGrowthDirection = cn[currentBeadNumber - 2];
+                    
+                    if (Vector3.Equals(currentGrowthDirection, Vector3.zero))
+                    {
+                        Debug.Log("Leaf without Collion normal");
+                        currentGrowthDirection = Vector3.Cross(attachedBeed.transform.forward, Vector3.up);
+                    }
                 }
 
                
                 else
                 {
-                    Debug.Log("null Vector Found Handle This!!!"+"  cnLength:" + cn.Length + " VS " + (currentBeadNumber - 2));
-                    
+                    Debug.Log("null Vector Found Handle This!!!"+"  cnLength:" + cn.Length + " VS " + (currentBeadNumber - 2));                   
                     return;
                 }
+
+       
+
                 gameObject.transform.position = attachedBeed.transform.position;
 
                 if (firstTime)
@@ -98,7 +129,7 @@ public class Leaf : MonoBehaviour
                     startBead = attachedBeed;
                     firstTime = false;
                 }
-                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, attachedBeed.transform.forward, 0.001f, 0.5f);
+                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, attachedBeed.transform.forward, 0.001f*rotatingSpeed, 0.5f);
             }
 
 
@@ -125,23 +156,29 @@ public class Leaf : MonoBehaviour
                 gameObject.transform.localScale = Mathf.SmoothStep(0f, 3.0f, currentScale) * new Vector3(1, 1, 1);
                 currentScale = currentScale + growthRate;
             }
+            if (!(currentScale < 3) && !heliotropicLeafs)
+            {
+                heliotropicLeafs = true;
+                startingForwardDirection = gameObject.transform.forward;
+            }
             if (Vector3.Angle(gameObject.transform.forward, currentGrowthDirection) > endleafSetGrowthAngle)
             {
-                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, currentGrowthDirection, 0.0005f, 0.5f);
+                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, currentGrowthDirection, 0.0005f*rotatingSpeed, 0.5f);
                 
             }
             if (Vector3.Angle(gameObject.transform.forward, Vector3.up) > 30) {
 
-                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, Vector3.up, StemGrowthSpeed, 0.5f);
+                gameObject.transform.forward = Vector3.RotateTowards(gameObject.transform.forward, Vector3.up, 0.0005f * rotatingSpeed, 0.5f);
             }
-            offset = Vector3.Slerp(offset, 2 * currentGrowthDirection.normalized, 0.0001f);
-            gameObject.transform.position = attachedBeed.transform.position + offset;
+            horizntalOffset = Vector3.Slerp(horizntalOffset, 2 * currentGrowthDirection.normalized, 0.0001f*stemGrowthSpeed);
+            VerticalOffset =  Vector3.Slerp(VerticalOffset, 2 * Vector3.up.normalized, 0.00005f * stemGrowthSpeed);
+
+            gameObject.transform.position = attachedBeed.transform.position + horizntalOffset+ VerticalOffset;
             //gameObject.transform.position = Vector3.Slerp(gameObject.transform.position, attachedBeed.transform.position+currentGrowthDirection.normalized,0.01f);
             stem[1] = transform.InverseTransformPoint(gameObject.transform.position);
 
             //Debug.Log("StartBeadAvailable:"+(startBead!=null)+"\n");
-            stem[0] = transform.InverseTransformPoint(startBead.transform.position);
-            
+            stem[0] = transform.InverseTransformPoint(attachedBeed.transform.position);           
             renderStem();
         }
     }
@@ -149,10 +186,10 @@ public class Leaf : MonoBehaviour
     void complexLeafGrowth()
     {
         simpleLeafGrowth();
-        subleaf1.transform.localRotation = Quaternion.Lerp(subleaf1.transform.localRotation, Quaternion.Euler(0, -1*endAngle, 0), 0.0005f);
-        subleaf2.transform.localRotation = Quaternion.Lerp(subleaf2.transform.localRotation, Quaternion.Euler(0, endAngle, 0), 0.0005f);
+        subleaf1.transform.localRotation = Quaternion.Lerp(subleaf1.transform.localRotation, Quaternion.Euler(0, -1*endAngle, 0), 0.0005f*SpanningSpeed);
+        subleaf2.transform.localRotation = Quaternion.Lerp(subleaf2.transform.localRotation, Quaternion.Euler(0, endAngle, 0), 0.0005f*SpanningSpeed);
         if (isLeafTriplet) {
-            subleaf3.transform.localRotation = Quaternion.Lerp(subleaf3.transform.localRotation, Quaternion.Euler(endAngle, 0, 0), 0.0005f);
+            subleaf3.transform.localRotation = Quaternion.Lerp(subleaf3.transform.localRotation, Quaternion.Euler(endAngle, 0, 0), 0.0005f*SpanningSpeed);
         }
         //subleaf1.transform.localPosition = Vector3.Lerp(subleaf1.transform.localPosition, new Vector3(-1, 0, 0), 0.005f);
         //subleaf2.transform.localPosition = Vector3.Lerp(subleaf2.transform.localPosition, new Vector3(1, 0, 0), 0.005f);
@@ -175,5 +212,23 @@ public class Leaf : MonoBehaviour
     {
         tubeRenderer.enabled = true;
         tubeRenderer.SetBinePoints(stem, girths, Color.cyan);
+    }
+
+    void showHeliotropicMovements()
+    {
+        Debug.Log("heliotropic Movements\n  ");
+        Debug.DrawRay(gameObject.transform.position, gameObject.transform.right, Color.black, 5);
+        Debug.DrawRay(gameObject.transform.position, currentGrowthDirection, Color.green, 5);
+
+        //if (Vector3.Angle(gameObject.transform.forward, startingForwardDirection) > 45)
+        //{
+        //   heliotropicMovementDirection = heliotropicMovementDirection * -1;
+        //}
+        gameObject.transform.RotateAroundLocal(currentGrowthDirection,  0.5f);
+        //gameObject.transform.RotateAround(transform.position, currentGrowthDirection, heliotropicMovementDirection * 0.1f);
+
+
+
+
     }
 }

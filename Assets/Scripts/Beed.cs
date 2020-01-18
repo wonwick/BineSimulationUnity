@@ -6,11 +6,13 @@ public class Beed : MonoBehaviour {
 
     public float acceptedCollitionAngle = 30;
     public GameObject thePlant;
+    Rigidbody rb;
 
     // Use this for initialization
     void Start () {
         
         Debug.Log("a new beed\n");
+        rb = GetComponent<Rigidbody>();
         
     }
 	
@@ -22,9 +24,10 @@ public class Beed : MonoBehaviour {
 
     void OnCollisionEnter(Collision collision)
     {
-        
-        
-        
+        Debug.Log("!!!!!!!! Hit on Support !!!!!!!!!");
+
+        rb = GetComponent<Rigidbody>();
+        rb.isKinematic = true;
         float currentCollitionAngle = Vector3.Angle(this.gameObject.transform.forward, collision.contacts[0].normal*-1);
 
         //Debug.Log("colided: " + currentCollitionAngle);
@@ -32,15 +35,14 @@ public class Beed : MonoBehaviour {
         if (currentCollitionAngle > acceptedCollitionAngle)
         {
             //Debug.Break();
+            rb.isKinematic = true;
             thePlant.GetComponent<Bine>().onHitSupportStructure(collision);
 
 
         }
         else {
             //Debug.Log("not Accepted collition: " + currentCollitionAngle+"<"+acceptedCollitionAngle);
-            Destroy(this.gameObject.GetComponent<Collider>());
-            Destroy(this.gameObject.GetComponent<Beed>());
-            
+            rb.isKinematic = true;
         }
             
     }

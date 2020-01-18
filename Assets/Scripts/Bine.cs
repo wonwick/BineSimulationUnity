@@ -1,8 +1,27 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.IO;
+using UnityEngine.Profiling;
+
 
 public class Bine : MonoBehaviour {
+    int lastEntry;
+    int usedMemory;
+    bool end = false;
+    int fps;
+    int reportIterator;
+    int[,] report;
+    int inTwineConsecutiveTimes = 0;
+    bool[] nodes;
+    float nutationalDirection =1f;
+    GameObject previiousBead;
+    Vector3 targetLastBeadPosition;
+    float growthSpeed = 1;
+    float InterNodeGrowth = 0;
+    public int initialPhaseBeadCount;
+    public bool inInitialPhase = true;
+    public float initialPhaseInterBeadDistance;
     public int leafTravelDistance; 
     public int beedGapPerLeaf;
     bool addLeaf = true;
@@ -52,12 +71,34 @@ public class Bine : MonoBehaviour {
     Collider collidingObject;
     Collider collidingBeed;
     Leaf theLeaf;
-    // Use this for initialization
+    GameObject psudoGameObject;
+    int numberOfBeasTillCotyldons = 11;
+
+    bool growWithoutSupport = false;
+    bool growAroundSupport = false;
+    bool getReadyToCircumnutate = false;
+
+    bool seedRisen = false;
+    bool primaryLeafRisen = false;
+    bool primaryLeafGrown =false;
+
+    public float nutatingAmountPerTurn = 5;
+    float nutatingAmountPerTurnChange = 1;
+    public float speed;
+    public float upwardTurningSpeed;
+    bool isStemOverGrown = false;
+
     private void Awake()
     {
+        usedMemory = 0;
+        lastEntry = 0;
+        reportIterator = 0;
         thisGameObject = this.gameObject;
-        seed = GameObject.Find("seed1");
+        report = new int[2000,4];
         plant = new GameObject[particleCount];
+        nodes = new bool[particleCount];
+        nodes[numberOfBeasTillCotyldons] = true;
+        nodes[numberOfBeasTillCotyldons+1] = true;
         leaves = new GameObject[particleCount / beedGapPerLeaf];
         cn = new Vector3[particleCount];
         beedPositions = new Vector3[particleCount];
@@ -73,96 +114,372 @@ public class Bine : MonoBehaviour {
         lastBeed.transform.Rotate(initRotation);
         plant[currentNumberOfBeeds] = lastBeed;
         currentNumberOfBeeds++;
-        theLeaf = leaf.GetComponent<Leaf>();
-        theLeaf.FirstLeaf = true;
-        theLeaf.plant = plant;
-        theLeaf.destinationBeadNumber = 5;
-        theLeaf.currentBeadNumber = currentNumberOfBeeds;
-        leaves[0] = leaf;
-        currentNumberOfLeaves++;
+        //theLeaf = leaf.GetComponent<Leaf>();
+        //theLeaf.FirstLeaf = true;
+        //theLeaf.plant = plant;
+        //theLeaf.destinationBeadNumber = 5;
+        //theLeaf.currentBeadNumber = currentNumberOfBeeds;
+        //leaves[0] = leaf;
+        //currentNumberOfLeaves++;
     }
+
     void Start() {
-        
-    }
-    //this is called in fixed intervals
-    private void FixedUpdate() {
-        if (frameCount >= growthTime)
+        //plant initail stage building
+        psudoGameObject = new GameObject();
+        float curve = 270;
+        float curveAmount = 3;
+        lastBeed.transform.eulerAngles=new Vector3(250, 180,180);
+        Vector3 Beanforward = lastBeed.transform.eulerAngles;
+        //Debug.Log("startingbeadForward.Y: " + Beanforward+ "\n");
+        //Debug.Log("begins \n");
+        upwardTurningSpeed = upwardTurningSpeed* speed;
+        while (curve > 90)
         {
-            //Debug.Log("growthTime\n");
-            frameCount = 0;
-            if (currentNumberOfBeeds < particleCount)
+            curveAmount += 3;
+            curve -= curveAmount;
+            Vector3 newPosition = lastBeed.transform.position + lastBeed.transform.forward * initialPhaseInterBeadDistance;
+            // removing the colider of previouse beed
+            DestroyImmediate(lastBeed.GetComponent<Collider>());
+            DestroyImmediate(lastBeed.GetComponent<Beed>());
+            lastBeed = Instantiate(beed, newPosition, lastBeed.transform.rotation);
+            lastBeed.name = "Beed" + currentNumberOfBeeds;
+            lastBeed.transform.parent = thisGameObject.transform;
+            lastBeed.transform.eulerAngles = new Vector3(curve,0, 0);
+            plant[currentNumberOfBeeds] = lastBeed;
+            Beanforward = lastBeed.transform.rotation.eulerAngles;
+            //Debug.Log("     beadForward.Y: " + Beanforward+ "\n");
+            currentNumberOfBeeds++;
+        }
+
+        seed.transform.position = lastBeed.transform.position;
+
+
+        for (int i = 0; i < 5; i++)
+        {
+            Vector3 newPosition = lastBeed.transform.position + lastBeed.transform.forward * 0.000001f;
+            // removing the colider of previouse beed
+            Vector3 prevForward = lastBeed.transform.forward;
+            DestroyImmediate(lastBeed.GetComponent<Collider>());
+            DestroyImmediate(lastBeed.GetComponent<Beed>());
+            lastBeed = Instantiate(beed, newPosition, lastBeed.transform.rotation);
+            lastBeed.name = "Beed" + currentNumberOfBeeds;
+            lastBeed.transform.forward = prevForward;
+            lastBeed.transform.parent = thisGameObject.transform;
+            plant[currentNumberOfBeeds] = lastBeed;
+            currentNumberOfBeeds++;
+        }
+
+        //seed.transform.eulerAngles =     
+
+        //Debug.Log("ends \n");
+
+    }
+
+    private void FixedUpdate() {
+
+        
+        GenerateReport();
+        //Debug.DrawRay(lastBeed.transform.position,lastBeed.transform.forward,Color.cyan,1);
+        //Debug.DrawRay(seed.transform.position, seed.transform.forward, Color.yellow);
+        // plant growth
+        if (inInitialPhase)
+        {
+
+            if (!seedRisen)
             {
-                if (supportLost)
+                //Debug.Log("seed Rising\n");
+                seedRises();
+                //Debug.Log( "angle: "+Vector3.Angle(plant[currentNumberOfBeeds-1].transform.forward, Vector3.up)+"\n");
+                if (Vector3.Angle(plant[11 - 1].transform.forward, Vector3.up) <= 100)
                 {
-                    supportLostGrowth();
-                }
-
-                else if (!supportFound)
-                {
-                    SupportLessGrowth();
-                }
-
-                else if (!hasGroped)
-                {
-                    initGrope();
-                    groping = true;
-                }
-
-                else
-                {
-                    //Debug.Log("supportFoundGrowth\n");
-                    //Debug.DrawRay(beedCollision.contacts[0].point, collisionNormal, Color.green, 60*5, false);
-                    newGrowthDirection = collisionNormal;
-
-                    newGrowthDirection = Vector3.RotateTowards(lastBeed.transform.forward, newGrowthDirection, Mathf.Deg2Rad * growthAngleBias, 0.0f);
-                    //Debug.DrawRay(lastBeed.transform.position, collisionNormal*20, Color.yellow, 60 * 5, false);           
-                    //Debug.DrawRay(lastBeed.transform.position, lastBeed.transform.forward, Color.blue, 60*5, false);
-                    //Debug.DrawRay(lastBeed.transform.position, newGrowthDirection * 2, Color.red, 60 * 5, false);
-                    SupportedGrowth(newGrowthDirection);
-
-                    //supportFound = false;
-                    circumnutationOn = true;
+                    seedRisen = true;
+                    startingBeed = currentNumberOfBeeds - 2;
 
                 }
             }
+
+            else if (!primaryLeafRisen)
+            {
+                //Debug.Log("primary leaf Rising\n");
+
+                raiseThePrimaryLeaves();
+                if (Vector3.Angle(lastBeed.transform.forward, Vector3.up) <= 1f)
+                {
+                    lastBeed.transform.forward = Vector3.up;
+                    seedRisen = true;
+
+                    startingBeed = currentNumberOfBeeds - 2;
+                    growWithoutSupport = true;
+                    primaryLeafRisen = true;
+
+                }
+            }
+
+            else if (!primaryLeafGrown)
+            {
+                //Debug.Log("primary leaf Growing\n");
+
+                primaryLeafGrown = growingPrimaryLeves();
+            }
+
+            else
+            {
+                Debug.Log("initial phase ending\n");
+
+                inInitialPhase = false;
+            }
         }
-        else {
-            frameCount++;
-            //check whether there is a colision on lastbeed
 
+        else if (growWithoutSupport)
+        {
+            SupportLessGrowth();
+            growWithoutSupport = false;
+        }
 
+        else if(isStemOverGrown)
+        {
+            fallingStem();
+        }
+
+        else if (groping)
+        {
+            grope();
+        }
+
+        else if (growAroundSupport)
+        {
+            growWithSupportIntact();
+            growAroundSupport = false;
+        }
+
+        else if (getReadyToCircumnutate)
+        {
+            getReadyToCircumnutate = false;
+            supportLostGrowth();
+        }
+
+        else
+        {
 
             if (circumnutationOn)
             {
                 if (!supportFound)
                 {
-                    supportLessCircumnutation();
+                    circumnutation();
                 }
                 else
                 {
-                    //add new supportfoundCircumnutation here
-                    supportedCircumnutation();
+                    twine();
                 }
             }
-            else if (groping)
+
+        }    
+
+        RenderTheStem();
+
+        if (currentNumberOfBeeds > 2)
+        {
+            LeafGrowth();
+        }
+    }
+
+    void growWithSupportIntact() {
+        //Debug.Log("supportFoundGrowth\n");
+        //Debug.DrawRay(beedCollision.contacts[0].point, collisionNormal, Color.green, 60*5, false);
+        newGrowthDirection = collisionNormal;
+
+        newGrowthDirection = Vector3.RotateTowards(lastBeed.transform.forward, newGrowthDirection, Mathf.Deg2Rad * growthAngleBias, 0.0f);
+        //Debug.DrawRay(lastBeed.transform.position, collisionNormal*20, Color.yellow, 60 * 5, false);           
+        //Debug.DrawRay(lastBeed.transform.position, lastBeed.transform.forward, Color.blue, 60*5, false);
+        //Debug.DrawRay(lastBeed.transform.position, newGrowthDirection * 2, Color.red, 60 * 5, false);
+
+        //SupportedGrowth(newGrowthDirection);
+
+        SupportedGrowth(lastBeed.transform.forward);
+
+
+        //supportFound = false;
+        circumnutationOn = true;
+    }
+
+    bool growingPrimaryLeves()
+    {
+        float growingPrimaryLevesSpeed = 1 * speed;
+        float growthLimit =4;
+        float nutationSpeed = growingPrimaryLevesSpeed * 5;        
+        float primaryleafGrowingSpeed = growingPrimaryLevesSpeed * 5;
+        float stemGrowthSpeed = growingPrimaryLevesSpeed * 0.7f;
+        float leafScalingSpeed = growingPrimaryLevesSpeed * 1;
+        float rotateAmount = 0.0002f * growingPrimaryLevesSpeed;
+        bool readyToleaveThisState = false;
+        if (leaf.transform.localScale.x <= growthLimit)
+        {
+            initialPhaseInterBeadDistance += 0.01f* stemGrowthSpeed;
+            for (int i = numberOfBeasTillCotyldons-1; i < currentNumberOfBeeds - 1; i++)
             {
-                grope();
-                
+                plant[i].transform.forward = Vector3.RotateTowards(plant[i].transform.forward, nutationalDirection*Vector3.right, rotateAmount* nutationSpeed, 0);
+                Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance* stemGrowthSpeed;
+                plant[i + 1].transform.position = newPosition;
+                rotateAmount += nutatingAmountPerTurn*0.0001f * nutationSpeed;
+            }
+            
+            lastBeed.transform.forward = Vector3.RotateTowards(lastBeed.transform.forward, nutationalDirection * Vector3.right, rotateAmount, 0);
+
+            // chnage the nutating amount per each direction change;
+            if (nutatingAmountPerTurn > 1)
+            {
+                nutatingAmountPerTurn -= 0.01f;
+            }
+
+            // Change nutational direction alternatively
+            if (Vector3.Angle(plant[numberOfBeasTillCotyldons].transform.forward, Vector3.up) > nutatingAmountPerTurn)
+            {
+                nutationalDirection = nutationalDirection * -1;
+            }
+
+            leaf.transform.position = lastBeed.transform.position;
+
+            //leaf.transform.forward = lastBeed.transform.forward;
+
+      
+            float spanningSpeed = 1.5f * growingPrimaryLevesSpeed;
+            leaf.transform.GetChild(0).transform.localRotation = Quaternion.Lerp(leaf.transform.GetChild(0).transform.localRotation, Quaternion.Euler(0, -1 * 30, 0), 0.005f * spanningSpeed);
+            leaf.transform.GetChild(1).transform.localRotation = Quaternion.Lerp(leaf.transform.GetChild(1).transform.localRotation, Quaternion.Euler(0, 30, 0), 0.005f * spanningSpeed);
+       
+            leaf.transform.localScale = new Vector3(leaf.transform.lossyScale.x + 0.01f * leafScalingSpeed, leaf.transform.localScale.y + 0.03f * leafScalingSpeed, leaf.transform.lossyScale.z + 0.01f * leafScalingSpeed);
+        }
+        else
+        {
+            // Once the leaf growth compleats re-arranging the stem after above nutation 
+            for (int i = numberOfBeasTillCotyldons - 1; i < currentNumberOfBeeds - 1; i++)
+            {
+                plant[i].transform.forward = Vector3.RotateTowards(plant[i].transform.forward,Vector3.up, rotateAmount, 0);
+                Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance * stemGrowthSpeed;
+                plant[i + 1].transform.position = newPosition;
+                rotateAmount += 0.001f * primaryleafGrowingSpeed;
+            }
+
+            lastBeed.transform.forward = Vector3.RotateTowards(lastBeed.transform.forward,Vector3.up, rotateAmount, 0);
+
+            leaf.transform.position = lastBeed.transform.position;
+            //leaf.transform.forward = lastBeed.transform.forward;
+
+            //Debug.Log("$$$" + leaf.transform.eulerAngles.y + "$$$");
+
+            // After adjusted enough leaving the Primary Leaf Growth State
+            if (Vector3.Angle(Vector3.up, lastBeed.transform.forward) < 1)
+            {
+                 Rigidbody rb = seed.GetComponent<Rigidbody>();
+                rb.isKinematic = false;
+                rb.useGravity = true;
+                readyToleaveThisState = true;
+                //leaf.transform.Rotate(new Vector3(0, 0, 90));
+
             }
         }
+        // Addressing gimbelLock like issue hack to set forward direction of primary leaf
+        if (seed.transform.GetChild(0).localScale.z > 0.05) {
+            seed.transform.GetChild(0).localScale = seed.transform.GetChild(0).localScale + (Vector3.back * 0.0001f);
+            seed.transform.GetChild(1).localScale = seed.transform.GetChild(1).localScale + (Vector3.back * 0.0001f);
+
+        }
+        psudoGameObject.transform.position = lastBeed.transform.position + lastBeed.transform.forward*5;
+        leaf.transform.rotation = Quaternion.LookRotation(lastBeed.transform.forward, leaf.transform.up);
+        Debug.DrawRay(leaf.transform.position, leaf.transform.forward, Color.black, 10);
+        Debug.DrawRay(leaf.transform.position, leaf.transform.forward, Color.black, 10);
+
+        return readyToleaveThisState;
+    }
+
+    void raiseThePrimaryLeaves() {
+        initialPhaseInterBeadDistance += 0.0005f;
+        float primaryLeavesRaisingSpeed =1;
+        float stemGrowthSpeed =primaryLeavesRaisingSpeed*0.5f;
+        float rotateAmount = 0.015f* primaryLeavesRaisingSpeed;
+        for (int i = 10; i < currentNumberOfBeeds - 1; i++)
+        {
+            //plant[i].transform.rotation = Quaternion.Lerp(plant[i].transform.rotation, Quaternion.LookRotation(Vector3.up), Time.time * 0.0001f);
+            //Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance;
+            plant[i].transform.forward = Vector3.RotateTowards(plant[i].transform.forward, Vector3.up, rotateAmount, 0);
+            Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance* stemGrowthSpeed;
+            plant[i + 1].transform.position = newPosition;
+            //plant[i + 1].transform.forward = plant[i].transform.forward;
+            rotateAmount -= 0.002f* primaryLeavesRaisingSpeed;
+        }
+        lastBeed.transform.forward = Vector3.RotateTowards(lastBeed.transform.forward, Vector3.up, rotateAmount, 0);
+
+        leaf.transform.position = lastBeed.transform.position;
+        leaf.transform.forward = lastBeed.transform.forward;
+        float growthSpeed = 0.2f*primaryLeavesRaisingSpeed;
+        if (leaf.transform.localScale.x < 7)
+        {
+            leaf.transform.localScale = new Vector3(leaf.transform.lossyScale.x + 0.01f* growthSpeed, leaf.transform.localScale.y + 0.03f* growthSpeed, leaf.transform.lossyScale.z + 0.01f * growthSpeed);
+        }
+
+        float spanningSpeed = 0.2f*primaryLeavesRaisingSpeed;
+        leaf.transform.GetChild(0).transform.localRotation = Quaternion.Lerp(leaf.transform.GetChild(0).transform.localRotation, Quaternion.Euler(0, -1 * 30, 0), 0.005f* spanningSpeed);
+        leaf.transform.GetChild(1).transform.localRotation = Quaternion.Lerp(leaf.transform.GetChild(1).transform.localRotation, Quaternion.Euler(0, 30, 0), 0.005f* spanningSpeed);
+
+    }
+
+    void seedRises() {
+        float seedRisingSpeed = 1;
+        initialPhaseInterBeadDistance += 0.0005f;
+   
+        //Debug.Log("currentNumberOfBeeds: " + numberOfBeasTillCotyldons + "\n");
+        for (int i = 0; i < numberOfBeasTillCotyldons - 1; i++)
+        {
+
+            plant[i].transform.rotation = Quaternion.Lerp(plant[i].transform.rotation, Quaternion.LookRotation(Vector3.up), Time.time * 0.001f);
+            Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance;
+            plant[i + 1].transform.position = newPosition;
+
+        }
+        
+        plant[numberOfBeasTillCotyldons - 1].transform.rotation = Quaternion.Lerp(plant[numberOfBeasTillCotyldons - 1].transform.rotation, Quaternion.LookRotation(Vector3.back), Time.time * 0.0005f);
+
+        seed.transform.position = plant[numberOfBeasTillCotyldons - 1].transform.position;
+        seed.transform.forward = plant[numberOfBeasTillCotyldons - 1].transform.forward;
+        
+
+
+        seed.transform.GetChild(0).transform.localPosition = seed.transform.GetChild(0).transform.localPosition + new Vector3(+0.0004f, 0, 0);
+        seed.transform.GetChild(1).transform.localPosition = seed.transform.GetChild(1).transform.localPosition + new Vector3(-0.0004f, 0, 0);
+
+        seed.transform.GetChild(0).transform.localRotation = Quaternion.Euler(seed.transform.GetChild(0).transform.localRotation.eulerAngles + new Vector3(0,+0.005f,0));
+        seed.transform.GetChild(1).transform.localRotation = Quaternion.Euler(seed.transform.GetChild(1).transform.localRotation.eulerAngles + new Vector3(0,-0.005f, 0));
+
+        for (int i = numberOfBeasTillCotyldons-1; i < currentNumberOfBeeds-1 ; i++)
+        {
+            Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance*0.5f;
+            plant[i + 1].transform.forward = plant[i].transform.forward;
+            plant[i + 1].transform.position = newPosition;
+        }
+        leaf.transform.position = lastBeed.transform.position;
+        leaf.transform.forward = lastBeed.transform.forward;
+
+        float LeafGrowthSpeed = 5 * seedRisingSpeed;
+
+        leaf.transform.localScale = new Vector3(leaf.transform.lossyScale.x + 0.0001f* LeafGrowthSpeed, leaf.transform.localScale.y + 0.0001f* LeafGrowthSpeed, leaf.transform.lossyScale.z + 0.0001f* LeafGrowthSpeed);
+
+    }
+
+    void RenderTheStem() {
         beedPositions = new Vector3[currentNumberOfBeeds];
         for (int i = 0; i < currentNumberOfBeeds; i++)
-        {   
+        {
             beedPositions[i] = plant[i].transform.localPosition;
-            girths[i] = tapperFunction_1(i,currentNumberOfBeeds, particleCount, maxGirth);
+            girths[i] = tapperFunction_4(i, currentNumberOfBeeds, particleCount, maxGirth);
+            if (nodes[i])
+            {
+                girths[i-2] = girths[i-2] * 1.2f;
+            }
         }
-        //tubeRenderer.SetPoints(beedPositions, 1, Color.cyan);
-        if (currentNumberOfBeeds > 1) {
+
+        if (currentNumberOfBeeds > 1)
+        {
             tubeRenderer.enabled = true;
             tubeRenderer.SetBinePoints(beedPositions, girths, Color.cyan);
-        }
-        if (currentNumberOfBeeds > 2) {
-            LeafGrowth();
         }
     }
 
@@ -170,8 +487,10 @@ public class Bine : MonoBehaviour {
     {
         if ((currentNumberOfBeeds % beedGapPerLeaf == 0) && addLeaf)
         {
+            nodes[currentNumberOfBeeds] = true;
+
             if (supportFound)
-            {
+            {               
                 newLeaf = Instantiate(secLeaf, secLeaf.transform.position, secLeaf.transform.rotation);
                 newLeaf.transform.rotation = Quaternion.Euler(newLeaf.transform.rotation.eulerAngles + new Vector3(0, 90, 0));  
                 newLeaf.name = "leaf" + currentNumberOfLeaves;
@@ -183,10 +502,13 @@ public class Bine : MonoBehaviour {
                 leaves[currentNumberOfLeaves] = newLeaf;
                 currentNumberOfLeaves++;
                 addLeaf = false;
+
+ 
+
             }
 
             else
-            {
+            {/*
                 newLeaf = Instantiate(secLeaf, secLeaf.transform.position, secLeaf.transform.rotation);
                 newLeaf.transform.rotation = Quaternion.Euler(newLeaf.transform.rotation.eulerAngles + new Vector3(0, 90, 0));
                 newLeaf.name = "leaf" + currentNumberOfLeaves;
@@ -199,13 +521,16 @@ public class Bine : MonoBehaviour {
                 leaves[currentNumberOfLeaves] = newLeaf;
                 currentNumberOfLeaves++;
                 addLeaf = false;
+                */
             }
         }
+
         if (!(currentNumberOfBeeds % 5 == 0))
         {
             addLeaf = true;
 
         }
+
         for (int i = 0; i< currentNumberOfLeaves; i++)
         {
             theLeaf = leaves[i].GetComponent<Leaf>();
@@ -214,29 +539,78 @@ public class Bine : MonoBehaviour {
             
     }
 
-
     void grope()
     {
-        if (collidingBeed.bounds.Intersects(collidingObject.bounds))
+        /*
+        Debug.Log("groping :D \n");
+        Debug.DrawRay(lastBeed.transform.position,lastBeed.transform.forward,Color.cyan,5*60);
+        bool Done = true;
+        if (Vector3.Angle(lastBeed.transform.forward, collisionNormal) > 90)
         {
-            Vector3 newDirection = lastBeed.transform.forward;
-            newDirection.y = 0.0f;
-            Vector3 translatingDirection = Vector3.RotateTowards(Vector3.Normalize(newDirection), -1*Vector3.Normalize(collisionNormal), 1, 0);
-            lastBeed.transform.Translate(0.001f * translatingDirection);
-           //Vector3 newRotation = Vector3.RotateTowards(lastBeed.transform.forward, collisionNormal, supportLostGravitrophismAdjustment, 0);
-            //lastBeed.transform.rotation = Quaternion.LookRotation(newRotation);
-            //Debug.Log("goaping: translating");
+            for (int i = startingBeed; i < currentNumberOfBeeds - 1; i++)
+            {
+                plant[i].transform.forward = Vector3.RotateTowards(plant[i].transform.forward, collisionNormal, 0.01f, 0);
+                plant[i + 1].transform.position = plant[i].transform.position + plant[i].transform.forward * beedDistance;
+            }
+
+            lastBeed.transform.forward = Vector3.RotateTowards(lastBeed.transform.forward, collisionNormal, 0.02f, 0);
+            Done = false;
+            initialPhaseInterBeadDistance = beedDistance;
 
         }
-        else {
-            groping = false;
-            circumnutationOn = true;
+        */
+
+        if (Vector3.Angle(lastBeed.transform.forward, Vector3.up) > 45)
+        {
+
+            for (int i = startingBeed; i < currentNumberOfBeeds - 1; i++)
+            {
+                plant[i].transform.forward = Vector3.RotateTowards(plant[i].transform.forward, Vector3.up, 0.01f, 0);
+                plant[i + 1].transform.position = plant[i].transform.position + plant[i].transform.forward * beedDistance;
+            }
+
+            lastBeed.transform.forward = Vector3.RotateTowards(lastBeed.transform.forward, Vector3.up, 0.01f, 0);
+            //Done = false;
+            initialPhaseInterBeadDistance = beedDistance;
+            //groping = false;
+            //hasGroped = true;
+            //startingBeed = currentNumberOfBeeds;
+            //growAroundSupport = true;
+        }
+        
+        //if (Done)
+        else
+        {
+            Debug.Log("In Finishing Groaping\n");
+            Rigidbody rb=lastBeed.GetComponent<Rigidbody>();
+            rb.isKinematic = false;
             hasGroped = true;
+            initialPhaseInterBeadDistance = initialPhaseInterBeadDistance + 0.01f;
+            plant[currentNumberOfBeeds - 2].transform.forward = Vector3.RotateTowards(plant[currentNumberOfBeeds - 2].transform.forward, collisionNormal*-1, 0.001f, 0);
 
+            lastBeed.transform.position = plant[currentNumberOfBeeds-2].transform.position + plant[currentNumberOfBeeds-2].transform.forward * initialPhaseInterBeadDistance;     
+            
         }
+        //if (collidingBeed.bounds.Intersects(collidingObject.bounds))
+        //{
+        //    Vector3 newDirection = lastBeed.transform.forward;
+        //    newDirection.y = 0.0f;
+        //    Vector3 translatingDirection = Vector3.RotateTowards(Vector3.Normalize(newDirection), -1*Vector3.Normalize(collisionNormal), 1, 0);
+        //    lastBeed.transform.Translate(0.001f * translatingDirection);
+        //   //Vector3 newRotation = Vector3.RotateTowards(lastBeed.transform.forward, collisionNormal, supportLostGravitrophismAdjustment, 0);
+        //    //lastBeed.transform.rotation = Quaternion.LookRotation(newRotation);
+        //    //Debug.Log("goaping: translating");
+
+        //}
+        //else {
+        //    groping = false;
+        //    circumnutationOn = true;
+        //    hasGroped = true;
+
+        //}
 
 
-    }
+    }   
 
     void initGrope()
     {
@@ -282,39 +656,142 @@ public class Bine : MonoBehaviour {
 
     }
 
+    void fallingStem()
+    {
+        growWithoutSupport = false;
+        circumnutationOn = false;
+        initialPhaseInterBeadDistance += 0.0005f;
+        float primaryLeavesRaisingSpeed = 3;
+        float rotateAmount = 0.015f * primaryLeavesRaisingSpeed;
+        int numberOfRotatingBeads = 5;
+        float targetFallenAngle = 45;
+        Debug.Log("Stem is falling");
+        if (!false)//circumnutation())
+        {
+
+            bool firstAfterRotating = true;
+            if (Vector3.Angle(plant[currentNumberOfBeeds - 1].transform.forward, Vector3.down) > 1)
+            {
+                for (int i = startingBeed; i < currentNumberOfBeeds-1; i++)
+                {
+                    //plant[i].transform.rotation = Quaternion.Lerp(plant[i].transform.rotation, Quaternion.LookRotation(Vector3.up), Time.time * 0.0001f);
+                    //Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance;
+                    //plant[i].transform.forward = Vector3.RotateTowards(plant[i].transform.forward, Vector3.down, rotateAmount * primaryLeavesRaisingSpeed, 0);
+                    if (i < startingBeed + 5)
+                    {
+                        plant[i].transform.Rotate(0.1f, 0, 0);
+                    }
+                    Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward ;
+                    Debug.DrawRay(plant[i].transform.position, plant[i].transform.forward, Color.cyan, 10);
+
+                    plant[i + 1].transform.position = newPosition;
+                    if (firstAfterRotating)
+                    {
+                        firstAfterRotating = false;
+                        plant[i + 1].transform.forward = plant[i].transform.forward;
+                    }
+                    rotateAmount += 0.002f * primaryLeavesRaisingSpeed;
+                }
+                plant[currentNumberOfBeeds - 1].transform.forward = Vector3.RotateTowards(plant[startingBeed + numberOfRotatingBeads].transform.forward, collisionNormal, rotateAmount, 0);
+
+            }
+            /*
+            else if (Vector3.Angle(plant[currentNumberOfBeeds - 1].transform.forward, Vector3.down) > targetFallenAngle)
+            {
+                for (int i = startingBeed; i < currentNumberOfBeeds - 2; i++)
+                {
+                    //plant[i].transform.rotation = Quaternion.Lerp(plant[i].transform.rotation, Quaternion.LookRotation(Vector3.up), Time.time * 0.0001f);
+                    //Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward * initialPhaseInterBeadDistance;
+                    plant[i].transform.forward = Vector3.RotateTowards(plant[i].transform.forward, Vector3.down, rotateAmount, 0);
+                    Vector3 newPosition = plant[i].transform.position + plant[i].transform.forward;
+                    plant[i + 1].transform.position = newPosition;
+                    //plant[i + 1].transform.forward = plant[i].transform.forward;
+                    rotateAmount += 0.002f * primaryLeavesRaisingSpeed;
+                }
+                plant[currentNumberOfBeeds - 1].transform.forward = Vector3.RotateTowards(plant[currentNumberOfBeeds - 1].transform.forward, Vector3.down, rotateAmount, 0);
+
+            }
+            */
+
+        }
+
+    }
+
     void supportLostGrowth()
     {
+        Debug.Log("getting ready to circumnutate..");
+        Debug.DrawRay(lastBeed.transform.position, lastBeed.transform.forward, Color.gray,5*60);
         float gravitrophismDifference = Vector3.Angle(lastBeed.transform.forward, theUpward);
+        Vector3 newPosition;
         //Debug.Log("gravitrophismDifference:" + gravitrophismDifference);
+
+        
+
         if (gravitrophismDifference > reCircumnutateReadyAngle)
         {
-            circumnutationOn = false;
-            Vector3 newRotation = Vector3.RotateTowards(lastBeed.transform.forward, theUpward, supportLostGravitrophismAdjustment, 0);
-            lastBeed.transform.rotation = Quaternion.LookRotation(newRotation);
-            newGrowthDirection = lastBeed.transform.forward;
-            SupportedGrowth(newGrowthDirection);
+            if (InterNodeGrowth >= beedDistance)
+            {
+                InterNodeGrowth = 0.1f;
+                circumnutationOn = false;
+                Vector3 newRotation = Vector3.RotateTowards(lastBeed.transform.forward, theUpward, supportLostGravitrophismAdjustment, 0);
+                lastBeed.transform.rotation = Quaternion.LookRotation(newRotation);
+                newGrowthDirection = lastBeed.transform.forward;
+                previiousBead = lastBeed;
+                newPosition = lastBeed.transform.position + Vector3.Normalize(newGrowthDirection) * InterNodeGrowth;
+                DestroyImmediate(lastBeed.GetComponent<Collider>());
+                DestroyImmediate(lastBeed.GetComponent<Beed>());
+                lastBeed = Instantiate(beed, newPosition, Quaternion.LookRotation(newGrowthDirection));
+                DestroyImmediate(lastBeed.GetComponent<Collider>());
+                DestroyImmediate(lastBeed.GetComponent<Beed>());
+                targetLastBeadPosition = newPosition;
+                //Instantiate(beed, newPosition, Quaternion.LookRotation(newGrowthDirection));
+
+                lastBeed.name = "Beed" + currentNumberOfBeeds;
+                lastBeed.transform.parent = thisGameObject.transform;
+                //lastBeed.transform.Rotate(getRelativeTilt(currentNumberOfBeeds, maxBeedRotation));
+                plant[currentNumberOfBeeds] = lastBeed;
+                //Debug.DrawRay(lastBeed.transform.position, lastBeed.transform.forward * 2, Color.red, 5, false);
+                currentNumberOfBeeds++;
+                getReadyToCircumnutate = true;
+            }
+            else
+            {
+                InterNodeGrowth = InterNodeGrowth + (growthSpeed * 0.01f);
+                newPosition = previiousBead.transform.position + Vector3.Normalize(newGrowthDirection) * InterNodeGrowth;
+                lastBeed.transform.position = newPosition;
+                getReadyToCircumnutate = true;
+            }
+
+            
 
         }
         else
         {
             lastBeed.transform.rotation = Quaternion.LookRotation(theUpward);
-            startingBeed = currentNumberOfBeeds-1;
+            startingBeed = currentNumberOfBeeds-2;
             //Debug.Log("ready to Circumnutate!!");
             circumnutationOn = true;
             supportLost = false;
+            getReadyToCircumnutate = false;
+            growWithoutSupport = true;
+            supportFound = false;
+            InterNodeGrowth = 2;
         }
 
-
+        //Debug.Log("########## In Support Lost Growth #####################\n");
 
     }
 
     void SupportedGrowth(Vector3 newGrowthDirection)
     {
+        Debug.DrawRay(lastBeed.transform.position, lastBeed.transform.forward, Color.yellow, 5 * 60);
         Vector3 newPosition = lastBeed.transform.position + Vector3.Normalize(newGrowthDirection)* beedDistance;
         DestroyImmediate(lastBeed.GetComponent<Collider>());
         DestroyImmediate(lastBeed.GetComponent<Beed>());
         lastBeed = Instantiate(beed, newPosition, Quaternion.LookRotation(newGrowthDirection));
-
+        lastBeed.transform.eulerAngles = new Vector3(-15,lastBeed.transform.eulerAngles.y,lastBeed.transform.eulerAngles.z);
+        Debug.DrawRay(lastBeed.transform.position, lastBeed.transform.forward, Color.red,5*60);
+        targetLastBeadPosition = newPosition;
         //Instantiate(beed, newPosition, Quaternion.LookRotation(newGrowthDirection));
 
         lastBeed.name = "Beed" + currentNumberOfBeeds;
@@ -325,10 +802,17 @@ public class Bine : MonoBehaviour {
         currentNumberOfBeeds++;
     }
 
-
-
     void SupportLessGrowth() {
-        Vector3 newPosition = lastBeed.transform.position + lastBeed.transform.forward * beedDistance;
+
+        if (currentNumberOfBeeds - startingBeed > 25)
+        {
+            circumnutationOn = false;
+            growWithoutSupport = false;
+            isStemOverGrown = true;
+
+        }
+
+        Vector3 newPosition = lastBeed.transform.position + lastBeed.transform.forward * 0.01f;
         // removing the colider of previouse beed
         DestroyImmediate(lastBeed.GetComponent<Collider>());
         DestroyImmediate(lastBeed.GetComponent<Beed>());
@@ -340,50 +824,133 @@ public class Bine : MonoBehaviour {
         currentNumberOfBeeds++;
     }
 
-    void supportLessCircumnutation() {
+    bool circumnutation() {
+       
+
+        if (isStemOverGrown)
+        {
+            if (Vector3.Angle(lastBeed.transform.forward, collisionNormal)<10)
+            {
+                return false;
+            }
+        }
+
         plant[startingBeed].transform.Rotate(getRelativeTilt(1, circumnutationSpeed), Space.World);
         GameObject prevBeed = plant[startingBeed];
-        for (int i= startingBeed+1; i < currentNumberOfBeeds; i++)
+        InterNodeGrowth = InterNodeGrowth + (growthSpeed * 0.01f);
+        GameObject currentBeed;
+        Vector3 newPosition;
+        int j = startingBeed + 1;
+        for (int i= startingBeed+1; i < currentNumberOfBeeds-1; i++)
         {
-            GameObject currentBeed = plant[i];
-            Vector3 newPosition = prevBeed.transform.position + prevBeed.transform.forward * beedDistance;
+            j = i;
+            currentBeed = plant[i];
+            newPosition = prevBeed.transform.position + prevBeed.transform.forward * beedDistance;
             currentBeed.transform.position = newPosition;
             currentBeed.transform.Rotate(getRelativeTilt(i, circumnutationSpeed), Space.World);
             prevBeed = currentBeed;
         }
+        j++;
+        currentBeed = plant[j];
+        newPosition = prevBeed.transform.position + prevBeed.transform.forward * InterNodeGrowth;
+        currentBeed.transform.position = newPosition;
+        currentBeed.transform.Rotate(getRelativeTilt(j, circumnutationSpeed), Space.World);
+        prevBeed = currentBeed;
+
+        if (InterNodeGrowth > beedDistance)
+        {
+            InterNodeGrowth = 0;
+            growWithoutSupport = true;
+        }
+
+        else
+        {
+            InterNodeGrowth = InterNodeGrowth + (growthSpeed * 0.01f);
+            growWithoutSupport = false;
+        }
+
+        return true;
+
     }
 
-    void supportedCircumnutation()
+    void twine()
     {
-        int supportedStartingBeed = startingBeed-1;
+        Debug.Log("inTwineConsecutiveTimes:" + inTwineConsecutiveTimes+"\n");
+        inTwineConsecutiveTimes += 1;
+       
+        InterNodeGrowth = 0;
+        float twinningSpeed = 1*speed;
+        int supportedStartingBeed = startingBeed - 1;
+        float MaxUpwardAngle = Mathf.Max((Vector3.Angle(plant[supportedStartingBeed - 1].transform.forward, Vector3.up)-5f),0f);
+
+        if (Vector3.Angle(plant[supportedStartingBeed].transform.forward, Vector3.up)> MaxUpwardAngle) 
+        {
+            plant[supportedStartingBeed].transform.forward = Vector3.RotateTowards(plant[supportedStartingBeed].transform.forward, Vector3.up, 0.01f * upwardTurningSpeed, 0);
+        }
+
         //Debug.Log("supportedCircumnutation"+supportedStartingBeed+"\n");
-        //Debug.DrawRay(plant[startingBeed].transform.position, plant[startingBeed].transform.forward * 2, Color.blue, 5*60, false);
         Vector3 newRotation = Vector3.RotateTowards(plant[supportedStartingBeed].transform.forward, collisionNormal * -1, 0.01f, 0);
         //Debug.DrawRay(plant[startingBeed].transform.position, plant[startingBeed].transform.forward * 2, Color.blue, 5*60, false);
         plant[supportedStartingBeed].transform.rotation = Quaternion.LookRotation(newRotation);
 
-      
+        
+
+        //else {
+        //    plant[supportedStartingBeed].transform.Rotate(new Vector3(0.01f, 0, 0));
+        //}
+        Debug.DrawRay(plant[startingBeed].transform.position, plant[startingBeed].transform.forward * 2, Color.blue);
 
         //Debug.DrawRay(plant[startingBeed].transform.position, collisionNormal * -5, Color.black, 60 * 5, false);
         //Debug.DrawRay(plant[startingBeed].transform.position, plant[startingBeed].transform.forward * 2, Color.red, 60*5, false);
 
         GameObject prevBeed = plant[supportedStartingBeed];
+
         for (int i = supportedStartingBeed + 1; i < currentNumberOfBeeds; i++)
         {
+            //Debug.Log("inForLoop\n");
             GameObject currentBeed = plant[i];
             Vector3 newPosition = prevBeed.transform.position + prevBeed.transform.forward * beedDistance;
             currentBeed.transform.position = newPosition;
-            newRotation= Vector3.RotateTowards(currentBeed.transform.forward, collisionNormal * -1, Mathf.Deg2Rad* supportedCircumnutationSpeed, 0);
-            currentBeed.transform.rotation = Quaternion.LookRotation(newRotation);
+            MaxUpwardAngle = Mathf.Max((Vector3.Angle(prevBeed.transform.forward, Vector3.up) - 5f), 0f);
 
-            //grvitrophism adjustment
+
+            if (Vector3.Angle(currentBeed.transform.forward, Vector3.up) > MaxUpwardAngle)
+            {
+                currentBeed.transform.forward = Vector3.RotateTowards(currentBeed.transform.forward, Vector3.up, 0.01f* upwardTurningSpeed, 0);
+            }
+            //else
+            //{
+            //    currentBeed.transform.Rotate(new Vector3(0.01f, 0, 0));
+            //}s
+            newRotation = Vector3.RotateTowards(currentBeed.transform.forward, collisionNormal * -1, Mathf.Deg2Rad * supportedCircumnutationSpeed, 0);
+                
+                
+            currentBeed.transform.forward = newRotation;
+                
+                //currentBeed.transform.rotation = Quaternion.LookRotation(newRotation);
+
+                
+
+            /*
+            // Grvitrophism adjustment
             newRotation = plant[supportedStartingBeed].transform.forward;
             newRotation = new Vector3(newRotation.x, Mathf.Deg2Rad * gravitrophismLimit, newRotation.z);
             newRotation = Vector3.RotateTowards(currentBeed.transform.forward, newRotation, Mathf.Deg2Rad * gravitrophismCorrectionValue, 0);
             currentBeed.transform.rotation = Quaternion.LookRotation(newRotation);
-
+            */
             //Debug.DrawRay(currentBeed.transform.position, newRotation * 0.5f, Color.cyan, 60 * 5, false);
             prevBeed = currentBeed;
+            
+        }
+
+        if (inTwineConsecutiveTimes > 1000)
+        {
+            Debug.Log("Support Lost by twining wait limit !!!");
+            supportFound = false;
+            circumnutationOn = false;
+            supportLost = true;
+            getReadyToCircumnutate = true;
+            InterNodeGrowth = 1;
         }
     }
 
@@ -396,9 +963,11 @@ public class Bine : MonoBehaviour {
         return currentBeedNumber / currentNumberOfBeeds;
     }
 
-    public void onHitSupportStructure(Collision collision) {
-        beedCollision = collision;        
-        startingBeed = currentNumberOfBeeds;
+    public void onHitSupportStructure(Collision collision)
+    {
+        //Debug.Log("!!!!!!!! Hit on Support !!!!!!!!!");
+        beedCollision = collision;
+        inTwineConsecutiveTimes = 0;
         collidingObject = collision.collider;
         collidingBeed = lastBeed.GetComponent<Collider>();
         collisionNormal = collision.contacts[0].normal;
@@ -407,14 +976,39 @@ public class Bine : MonoBehaviour {
         
         if (collitionangleRelativeToUpward < gravitrophismAbsoluteLimit)
         {
-            //Debug.Log("Support Lost !!!");
+            Debug.Log("Support Lost !!!");
             supportFound = false;
             circumnutationOn = false;
             supportLost = true;
+            getReadyToCircumnutate = true;
+            InterNodeGrowth = 1;
         }
         else {
             supportFound = true;
             circumnutationOn = false;
+            
+            if (!hasGroped)
+            {
+                if (/*(Vector3.Angle(lastBeed.transform.forward, collisionNormal) < 90) && */(Vector3.Angle(lastBeed.transform.forward, Vector3.up) < 75))
+                { 
+                    Debug.Log("bypassed groaping \n");
+                    startingBeed = currentNumberOfBeeds;
+                    hasGroped = true;
+                    growAroundSupport = true;
+                }
+                else
+                {
+                    Debug.Log("groaping started\n");
+                    groping = true;
+                }
+            }
+            else
+            {
+                groping = false;
+                Debug.Log("twinable Hit\n");
+                startingBeed = currentNumberOfBeeds;
+                growAroundSupport = true;
+            }
 
         }
     }
@@ -426,6 +1020,7 @@ public class Bine : MonoBehaviour {
 
     float tapperFunction_1(int i,int currentBeedCount, int maxBeedCount, float maxGirth)
     {
+
         return (maxGirth* (currentBeedCount-i) / maxBeedCount);
     }
 
@@ -436,4 +1031,53 @@ public class Bine : MonoBehaviour {
         //return (maxGirth * (currentBeedCount - i) / maxBeedCount);
     }
 
+    float tapperFunction_3(int i, int currentBeedCount, int maxBeedCount, float maxGirth)
+    {
+        float minGirth = 0.00f;
+        return ((maxGirth-minGirth) * (currentBeedCount - i) / maxBeedCount) +minGirth;
+    }
+
+    float tapperFunction_4(int i, int currentBeedCount, int maxBeedCount, float maxGirth)
+    {
+        return Mathf.Log(currentBeedCount-i, 2.71829f)*0.08f;
+    }
+
+    void GenerateReport() {
+        if (/*(currentNumberOfBeeds % 50 == 0) &&*/ (lastEntry != currentNumberOfBeeds))
+        {
+            lastEntry = currentNumberOfBeeds;
+            usedMemory = (int)(Profiler.GetTotalAllocatedMemoryLong()/1000000);
+            report[reportIterator, 0] = currentNumberOfBeeds;
+            report[reportIterator, 1] = currentNumberOfLeaves;
+            report[reportIterator, 2] = fps;
+            report[reportIterator, 3] = usedMemory;
+            reportIterator++;
+        }
+        if (currentNumberOfBeeds>2000 && !end)
+        {
+            Debug.Log("starting write\n");
+            end = true;
+            using (StreamWriter sw = File.AppendText("C:\\Users\\Oshan Wickramaratne\\Desktop\\PlantSim\\Oshan2019\\Analytics\\Fps.csv"))
+            {
+                sw.WriteLine("currentNumberOfBeeds, currentNumberOfLeaves, FPS");
+                for (int i = 0; i < reportIterator + 1; i++)
+                {
+                    sw.WriteLine(""+report[i, 0]+","+report[i, 1]+","+report[i, 2]);
+
+                }
+
+            }
+            Debug.Log("Done Writing\n");
+            GUI.Label(new Rect(0, 100, 100, 100), "DOneWriting");
+
+        }
+    }
+
+    void OnGUI()
+    {
+        GUI.Label(new Rect(0, 50, 100, 100),""+(int)(1.0f / Time.smoothDeltaTime));
+        GUI.Label(new Rect(0, 100, 100, 100), ""+currentNumberOfBeeds);
+        GUI.Label(new Rect(0, 150, 100, 100), "" + usedMemory);
+        fps = (int)(1.0f / Time.smoothDeltaTime);
+    }
 }
